@@ -1,99 +1,80 @@
 // src/findDepartures.tsx
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { ActionPanel, Action, List, Icon, showToast, Toast, Color, LocalStorage } from "@raycast/api";
-import { useFavorites } from "./hooks/useFavorites";
-import { fetchStations } from "./utils/api";
-import { FilterableSystem, Station, StationListItemProps } from "./types";
-import StationDepartures from "./components/StationDepartures";
-import ViewAlertsCommand from "./viewAlerts";
+import { ActionPanel, Action, List, Icon, showToast, Toast, Color } from "@raycast/api";
+import { useFavorites } from "./hooks/useFavorites"; // Hook for managing favorite IDs
+import { fetchStations } from "./utils/api"; // API utility to fetch from your wrapper
+import { FilterableSystem, Station } from "./types"; // Import types
+import StationDepartures from "./components/StationDepartures"; // Component to show departures
+import ViewAlertsCommand from "./viewAlerts"; // Component/Command to show alerts
 
-// Define the possible values for our system filter dropdown
+// --- Constants for Dropdown ---
 const systemFilters = ["All", "SUBWAY", "LIRR", "MNR"] as const;
-
-// Display names for the UI
 const systemFilterDisplayNames = {
-  All: "All",
+  All: "All Systems", // Slightly clearer display name
   SUBWAY: "Subway",
   LIRR: "LIRR",
-  MNR: "MNR",
+  MNR: "Metro-North",
 } as const;
-
-type SystemFilterValue = (typeof systemFilters)[number]; // Type: "ALL" | "SUBWAY" | "LIRR" | "MNR"
-
-// Map filter values to API parameter values ('All' maps to undefined)
+type SystemFilterValue = (typeof systemFilters)[number];
 type ApiSystemFilter = "SUBWAY" | "LIRR" | "MNR";
+
+// Helper to convert dropdown value to API parameter
 const filterValueToApiParam = (filter: SystemFilterValue): ApiSystemFilter | undefined => {
   if (filter === "All") return undefined;
   return filter as ApiSystemFilter;
 };
-
-// Update the StationListItemProps interface to include onRefresh
-interface ExtendedStationListItemProps extends StationListItemProps {
-  onRefresh: () => void;
-}
-
-const STATION_LIST_CACHE_KEY = "cachedStationList";
-const STATION_LIST_TIMESTAMP_KEY = "cachedStationListTimestamp";
-const STATION_LIST_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+// --- End Constants ---
 
 export default function FindDeparturesCommand() {
-  const [searchText, setSearchText] = useState("");
-  const [selectedSystem, setSelectedSystem] = useState<SystemFilterValue>("All");
-  const [allStations, setAllStations] = useState<Station[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const { addFavorite, removeFavorite, isFavorite } = useFavorites();
+  // --- State ---
+  const [searchText, setSearchText] = useState<string>(""); // User's search input
+  const [selectedSystem, setSelectedSystem] = useState<SystemFilterValue>("All"); // Dropdown selection
+  const [allStations, setAllStations] = useState<Station[]>([]); // Holds the FULL list for the selected system
+  const [isLoading, setIsLoading] = useState<boolean>(true); // Loading state for API calls
+  const [error, setError] = useState<string | null>(null); // Error message state
+  const { addFavorite, removeFavorite, isFavorite } = useFavorites(); // Favorites management
+  // --- End State ---
 
-  const loadStations = useCallback(async (currentSearchText: string, systemFilterValue: SystemFilterValue) => {
+  // --- Data Fetching Logic (No Caching) ---
+  const loadStations = useCallback(async (systemFilterValue: SystemFilterValue) => {
     setIsLoading(true);
+    setError(null);
     const apiSystemFilter = filterValueToApiParam(systemFilterValue);
+    console.log(`Fetching stations list for system: "${systemFilterValue}" (API Param: ${apiSystemFilter}) - NO CACHE`);
 
     try {
-      // First check if we have a valid timestamp
-      const timestampStr = await LocalStorage.getItem<string>(STATION_LIST_TIMESTAMP_KEY);
-      const timestamp = timestampStr ? parseInt(timestampStr, 10) : 0;
-
-      // If we have a valid timestamp and it's fresh enough
-      if (timestamp && Date.now() - timestamp < STATION_LIST_CACHE_TTL) {
-        console.log("Using cached station list");
-        const cachedData = await LocalStorage.getItem<string>(STATION_LIST_CACHE_KEY);
-        if (cachedData) {
-          const stations = JSON.parse(cachedData);
-          setAllStations(stations);
-          setIsLoading(false);
-          return;
-        }
-      }
-
-      console.log(
-        `Fetching stations for search: "${currentSearchText}", system: "${systemFilterValue}" (API Param: ${apiSystemFilter})`,
-      );
-      const stations = await fetchStations(currentSearchText, apiSystemFilter);
-
-      // Cache the data and timestamp separately
-      await Promise.all([
-        LocalStorage.setItem(STATION_LIST_CACHE_KEY, JSON.stringify(stations)),
-        LocalStorage.setItem(STATION_LIST_TIMESTAMP_KEY, Date.now().toString()),
-      ]);
-
-      setAllStations(stations);
+      // Fetch WITHOUT searchText - always get full list for the system
+      const stations = await fetchStations(undefined, apiSystemFilter);
+      setAllStations(stations); // Update state with fetched data
     } catch (err: unknown) {
       console.error("Failed to fetch stations:", err);
       const message = err instanceof Error ? err.message : "Could not load station data.";
+      setError(message);
       showToast({ style: Toast.Style.Failure, title: "Error Loading Stations", message: message });
-      setAllStations([]);
+      setAllStations([]); // Clear data on error
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, []); // useCallback dependencies are empty as fetchStations is stable
 
+  // --- Manual Refresh Handler (No Cache Clearing) ---
+  const handleRefresh = useCallback(async () => {
+    await showToast({ style: Toast.Style.Animated, title: "Refreshing station list..." });
+    // Just call loadStations for the current system, no forceRefresh needed
+    await loadStations(selectedSystem);
+    await showToast({ style: Toast.Style.Success, title: "Station list refreshed" });
+  }, [loadStations, selectedSystem]);
+
+  // --- useEffect: Load based on selectedSystem ONLY ---
   useEffect(() => {
-    loadStations(searchText, selectedSystem);
-  }, [searchText, selectedSystem, loadStations]);
+    loadStations(selectedSystem); // Load when system changes or on mount
+  }, [selectedSystem, loadStations]); // Depend only on system filter and load function
 
+  // --- useMemo to Split Stations for Section Rendering ---
+  // This still splits the current 'allStations' list for display structure
   const { favoriteStations, otherStations } = useMemo(() => {
     const favorites: Station[] = [];
     const others: Station[] = [];
-
     allStations.forEach((station) => {
       if (isFavorite(station.id)) {
         favorites.push(station);
@@ -101,78 +82,31 @@ export default function FindDeparturesCommand() {
         others.push(station);
       }
     });
-
     favorites.sort((a, b) => a.name.localeCompare(b.name));
     others.sort((a, b) => a.name.localeCompare(b.name));
-
     return { favoriteStations: favorites, otherStations: others };
-  }, [allStations, isFavorite]);
+  }, [allStations, isFavorite]); // Re-run when allStations or favorites change
 
-  const showFavorites = searchText === "" && favoriteStations.length > 0;
-  const showOthers = otherStations.length > 0;
+  // --- Conditional rendering flags ---
+  const hasFavorites = favoriteStations.length > 0;
+  const hasOthers = otherStations.length > 0;
+  const showEmptyView = !isLoading && !error && !hasFavorites && !hasOthers;
+  // ---
 
-  const handleRefresh = async () => {
-    // Show loading toast
-    await showToast({ style: Toast.Style.Animated, title: "Refreshing station list..." });
-
-    try {
-      console.log("Refresh started: Clearing cache");
-      // Clear cache
-      await Promise.all([
-        LocalStorage.removeItem(STATION_LIST_CACHE_KEY),
-        LocalStorage.removeItem(STATION_LIST_TIMESTAMP_KEY),
-      ]);
-
-      // Set loading state explicitly
-      setIsLoading(true);
-
-      // Instead of calling loadStations, directly fetch to avoid the caching logic
-      const apiSystemFilter = filterValueToApiParam(selectedSystem);
-      console.log(
-        `About to fetch fresh data for system: "${selectedSystem}", filter: ${apiSystemFilter}, searchText: "${searchText}"`,
-      );
-
-      // Add a flag to force the API call
-      const stations = await fetchStations(searchText, apiSystemFilter, true); // Add a forceRefresh parameter
-      console.log(`Fetch completed, received ${stations.length} stations`);
-
-      // Save the new data to cache
-      console.log("Updating cache with fresh data");
-      await Promise.all([
-        LocalStorage.setItem(STATION_LIST_CACHE_KEY, JSON.stringify(stations)),
-        LocalStorage.setItem(STATION_LIST_TIMESTAMP_KEY, Date.now().toString()),
-      ]);
-
-      // Update the state with the new data
-      setAllStations(stations);
-
-      // Show success toast
-      await showToast({ style: Toast.Style.Success, title: "Station list refreshed" });
-      console.log("Refresh completed successfully");
-    } catch (error) {
-      console.error("Failed to refresh station list:", error);
-      await showToast({
-        style: Toast.Style.Failure,
-        title: "Failed to refresh station list",
-        message: error instanceof Error ? error.message : "Unknown error",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // --- Render Component ---
   return (
     <List
       isLoading={isLoading}
       searchText={searchText}
       onSearchTextChange={setSearchText}
-      searchBarPlaceholder="Search LIRR/Subway/MNR Stations..."
-      throttle
+      filtering={true}
+      searchBarPlaceholder="Search Stations..."
       navigationTitle="Find Transit Departures"
+      // Dropdown to filter by system
       searchBarAccessory={
         <List.Dropdown
           tooltip="Filter by Transit System"
-          storeValue={true}
+          storeValue={true} // Keep storing dropdown UI state
           value={selectedSystem}
           onChange={(newValue) => {
             setSelectedSystem(newValue as SystemFilterValue);
@@ -180,93 +114,123 @@ export default function FindDeparturesCommand() {
         >
           <List.Dropdown.Section title="Filter by System">
             {systemFilters.map((filter) => (
-              <List.Dropdown.Item key={filter} title={systemFilterDisplayNames[filter]} value={filter} />
+              <List.Dropdown.Item
+                key={filter}
+                title={systemFilterDisplayNames[filter]}
+                value={filter}
+                // Basic icons
+                icon={
+                  filter === "SUBWAY"
+                    ? Icon.Train // Use specific icon if available
+                    : filter === "LIRR"
+                      ? Icon.Train
+                      : filter === "MNR"
+                        ? Icon.Train
+                        : Icon.BulletPoints // "All"
+                }
+              />
             ))}
           </List.Dropdown.Section>
         </List.Dropdown>
       }
+      // Global actions
+      actions={
+        <ActionPanel title="List Actions">
+          <Action
+            title="Refresh Station List"
+            icon={Icon.ArrowClockwise}
+            shortcut={{ modifiers: ["cmd"], key: "r" }}
+            onAction={handleRefresh} // Use manual refresh handler
+          />
+          <Action.Push title="View Service Alerts" icon={Icon.Bell} target={<ViewAlertsCommand />} />
+        </ActionPanel>
+      }
     >
-      {showFavorites && (
-        <List.Section title="Favorites">
-          {favoriteStations.map((station) => (
-            <StationListItem
-              key={`fav-${station.id}`}
-              station={station}
-              isFavorite={true}
-              addFavorite={addFavorite}
-              removeFavorite={removeFavorite}
-              onRefresh={handleRefresh}
-            />
-          ))}
-        </List.Section>
-      )}
+      {/* Error View */}
+      {error && !isLoading && <List.EmptyView icon={Icon.Warning} title="Error Loading Stations" description={error} />}
 
-      {showOthers && (
-        <List.Section
-          title={searchText === "" ? (showFavorites ? "Other Stations" : "All Stations") : "Search Results"}
-        >
-          {otherStations.map((station) => (
-            <StationListItem
-              key={`station-${station.id}`}
-              station={station}
-              isFavorite={isFavorite(station.id)}
-              addFavorite={addFavorite}
-              removeFavorite={removeFavorite}
-              onRefresh={handleRefresh}
-            />
-          ))}
-        </List.Section>
-      )}
+      {/* --- Render Both Sections - Raycast Filters Items INSIDE --- */}
+      {!isLoading && !error && (
+        <>
+          {/* Favorites Section - Rendered if favorites exist */}
+          {hasFavorites && (
+            <List.Section title="Favorites">
+              {favoriteStations.map((station) => (
+                <StationListItem
+                  key={`fav-${station.id}`}
+                  station={station}
+                  isFavorite={true}
+                  addFavorite={addFavorite}
+                  removeFavorite={removeFavorite}
+                />
+              ))}
+            </List.Section>
+          )}
 
-      {searchText !== "" && !showOthers && !isLoading && (
+          {/* Other Stations Section - Rendered if others exist */}
+          {hasOthers && (
+            <List.Section title={hasFavorites ? "Other Stations" : "Stations"}>
+              {otherStations.map((station) => (
+                <StationListItem
+                  key={`other-${station.id}`}
+                  station={station}
+                  isFavorite={false}
+                  addFavorite={addFavorite}
+                  removeFavorite={removeFavorite}
+                />
+              ))}
+            </List.Section>
+          )}
+        </>
+      )}
+      {/* --- End Render Both Sections --- */}
+
+      {/* Empty View (Only shown if BOTH sections would be empty AND not loading/error) */}
+      {showEmptyView && (
         <List.EmptyView
-          icon={Icon.MagnifyingGlass}
-          title="No Stations Found"
-          description={`Couldn't find stations matching "${searchText}".`}
-        />
-      )}
-
-      {searchText === "" && !showFavorites && !showOthers && !isLoading && (
-        <List.EmptyView
-          icon={Icon.Train}
-          title="No Stations Found"
-          description="No stations found. Try searching or refreshing."
+          icon={searchText ? Icon.MagnifyingGlass : Icon.Train}
+          title={searchText ? "No Stations Found" : "No Stations Loaded"}
+          description={
+            searchText
+              ? `Couldn't find stations matching "${searchText}" for the selected system.`
+              : `No station data found for the selected system.`
+          }
         />
       )}
     </List>
   );
 }
 
-// Station List Item component
-function StationListItem({
-  station,
-  isFavorite,
-  addFavorite,
-  removeFavorite,
-  onRefresh,
-}: ExtendedStationListItemProps) {
+// --- Station List Item Component ---
+interface StationListItemProps {
+  station: Station;
+  isFavorite: boolean;
+  addFavorite: (id: string) => void;
+  removeFavorite: (id: string) => void;
+}
+
+function StationListItem({ station, isFavorite, addFavorite, removeFavorite }: StationListItemProps) {
   const accessories: List.Item.Accessory[] = [];
 
-  // Add Lines Accessory
+  // Lines Accessory
   if (station.lines && station.lines.length > 0) {
     accessories.push({
-      // Use tag for compact display, or text if preferred
-      tag: { value: station.lines.join(" "), color: Color.PrimaryText }, // Display lines separated by space in a tag
-      // text: station.lines.join(", "), // Alternative: comma-separated text
+      tag: { value: station.lines.join(" "), color: Color.SecondaryText },
       tooltip: `Lines: ${station.lines.join(", ")}`,
-      icon: Icon.Train, // Use a relevant icon
+      icon: Icon.Train,
     });
   }
 
-  // Add System Accessory
+  // System Accessory
   if (station.system) {
     let systemColor = Color.SecondaryText;
     if (station.system === "SUBWAY") systemColor = Color.Blue;
     else if (station.system === "LIRR") systemColor = Color.Green;
     else if (station.system === "MNR") systemColor = Color.Red;
+    // Use display name for tag
     accessories.push({
       tag: {
-        value: systemFilterDisplayNames[station.system as keyof typeof systemFilterDisplayNames],
+        value: systemFilterDisplayNames[station.system as keyof typeof systemFilterDisplayNames] || station.system,
         color: systemColor,
       },
     });
@@ -275,23 +239,16 @@ function StationListItem({
   return (
     <List.Item
       title={station.name}
-      icon={Icon.Pin} // Keep generic pin or choose based on system later
-      accessories={accessories} // <-- Use the generated accessories array
+      keywords={[station.name]}
+      icon={Icon.Pin} // TODO: Could use system-specific icon here
+      accessories={accessories}
       actions={
         <ActionPanel>
           <ActionPanel.Section>
             <Action.Push
               title="View Departures"
               icon={Icon.Clock}
-              target={
-                <StationDepartures
-                  station={{
-                    id: station.id,
-                    name: station.name,
-                    system: station.system as FilterableSystem,
-                  }}
-                />
-              }
+              target={<StationDepartures station={station as Station & { system: FilterableSystem }} />}
             />
             {isFavorite ? (
               <Action
@@ -310,13 +267,16 @@ function StationListItem({
               />
             )}
           </ActionPanel.Section>
-
           <ActionPanel.Section>
-            <Action
-              title="Refresh Station List"
-              icon={Icon.ArrowClockwise}
-              shortcut={{ modifiers: ["cmd"], key: "r" }}
-              onAction={onRefresh}
+            <Action.CopyToClipboard
+              title="Copy Station Name"
+              content={station.name}
+              shortcut={{ modifiers: ["cmd"], key: "." }}
+            />
+            <Action.CopyToClipboard
+              title="Copy Station ID"
+              content={station.id}
+              shortcut={{ modifiers: ["cmd", "shift"], key: "." }}
             />
             <Action.Push title="View Service Alerts" icon={Icon.Bell} target={<ViewAlertsCommand />} />
           </ActionPanel.Section>
