@@ -28,19 +28,19 @@ function formatAlertDistance(dateString: string | null | undefined): string {
 
 interface ViewAlertsCommandProps {
   initialFilterLines?: string[]; // Optional lines to filter by initially
-  initialFilterActiveNow?: boolean; // Optional flag to show only active initially
+  initialFilterStationId?: string; // Optional station ID to filter by initially
 }
 
 export default function ViewAlertsCommand(props: ViewAlertsCommandProps = {}) {
   // Default empty props
-  const { initialFilterLines, initialFilterActiveNow = true } = props; // Default to showing active alerts if navigated to with a line filter
+  const { initialFilterLines, initialFilterStationId } = props; // Default to showing active alerts if navigated to with a line filter
   const [processedAlerts, setProcessedAlerts] = useState<ProcessedServiceAlert[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   // Store current filter state locally within this instance
   const [filterLines /* , setFilterLines */] = useState<string[] | undefined>(initialFilterLines); // Keep initial line filter
-  const [filterActive] = useState<boolean>(initialFilterActiveNow); // Use initial active filter
+  const [filterActive] = useState<boolean>(true); // Use initial active filter
 
   // Callback to fetch and update CACHE with RAW data
   const loadAlerts = useCallback(
@@ -53,7 +53,7 @@ export default function ViewAlertsCommand(props: ViewAlertsCommandProps = {}) {
       try {
         // Fetch raw ServiceAlert[] with string dates
         console.log(`[Alerts View] Fetching with Lines: ${filterLines?.join(",")}, Active: ${filterActive}`);
-        const alertsWithDates = await fetchAlerts(filterLines, filterActive);
+        const alertsWithDates = await fetchAlerts(filterLines, initialFilterStationId);
         setProcessedAlerts(alertsWithDates);
       } catch (err: unknown) {
         console.error("Failed to fetch alerts:", err);
@@ -160,7 +160,7 @@ function AlertListItem({ alert, onRefresh }: AlertListItemProps) {
             <Action.Push title="View Alert Details" icon={Icon.Sidebar} target={<AlertDetailView alert={alert} />} />
             {alert.url && (
               <Action.OpenInBrowser
-                title="Open on MTA Website"
+                title="Open on Website"
                 url={alert.url}
                 shortcut={{ modifiers: ["cmd", "shift"], key: "o" }}
               />
@@ -205,16 +205,14 @@ function AlertDetailView({ alert }: AlertDetailViewProps) {
   const markdown = `
 # ${alert.title}
 
-**Started:** ${startDateDistance} (${startDateFormatted})
+**Started:** ${startDateDistance} (${startDateFormatted})  
 ${alert.endDate ? `**Ends:** ${endDateFormatted}` : ""}
-
-**Affected Lines/Services:** ${alert.affectedLines.join(", ")}
 
 ---
 
 ${alert.description}
 
-${alert.url ? `\n[View on MTA Website](${alert.url})` : ""}
+${alert.url ? `\n[View on Website](${alert.url})` : ""}
   `;
 
   return (
@@ -223,7 +221,7 @@ ${alert.url ? `\n[View on MTA Website](${alert.url})` : ""}
       navigationTitle={alert.title}
       actions={
         <ActionPanel>
-          {alert.url && <Action.OpenInBrowser title="Open on MTA Website" url={alert.url} />}
+          {alert.url && <Action.OpenInBrowser title="Open on Website" url={alert.url} />}
           <Action.CopyToClipboard title="Copy Details" content={alert.description} />
           <Action.CopyToClipboard title="Copy Title" content={alert.title} />
         </ActionPanel>
@@ -235,11 +233,16 @@ ${alert.url ? `\n[View on MTA Website](${alert.url})` : ""}
           {alert.endDate && <Detail.Metadata.Label title="Ends" text={endDateFormatted} />}
 
           <Detail.Metadata.TagList title="Affected Lines">
-            {alert.affectedLines.map((line) => (
-              <Detail.Metadata.TagList.Item key={line} text={line} color={Color.Red} /> // Use appropriate color logic later
+            {alert.affectedLinesLabels.map((line) => (
+              <Detail.Metadata.TagList.Item key={line} text={line} color={Color.Red} />
             ))}
           </Detail.Metadata.TagList>
-          {alert.url && <Detail.Metadata.Link title="Official Link" target={alert.url} text="MTA Website" />}
+          <Detail.Metadata.TagList title="Affected Stations">
+            {alert.affectedStationsLabels.map((station) => (
+              <Detail.Metadata.TagList.Item key={station} text={station} color={Color.Red} />
+            ))}
+          </Detail.Metadata.TagList>
+          {alert.url && <Detail.Metadata.Link title="Official Link" target={alert.url} text="Website" />}
           <Detail.Metadata.Separator />
         </Detail.Metadata>
       }

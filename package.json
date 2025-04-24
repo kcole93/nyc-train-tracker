@@ -1,8 +1,8 @@
 {
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "mta-lirr-tracker",
-  "title": "MTA/LIRR Tracker",
-  "description": "Look up train departures and service alerts for MTA/LIRR.",
+  "title": "NYC Train Tracker",
+  "description": "Look up train departures and service alerts for MTA, LIRR and MNR.",
   "icon": "extension-icon.png",
   "author": "kcole93",
   "owner": "ainslie-digital",
@@ -16,7 +16,39 @@
       "title": "findDepartures",
       "subtitle": "Find Train Departures",
       "description": "Search for MTA/LIRR station departures and view favorites.",
-      "mode": "view"
+      "mode": "view",
+      "preferences": [
+        {
+          "name": "defaultDepartureWindow",
+          "title": "Default Departure Window",
+          "description": "Select the default time window for showing departures.",
+          "type": "dropdown",
+          "required": false,
+          "data": [
+            {
+              "title": "Next 10 Minutes",
+              "value": "10"
+            },
+            {
+              "title": "Next 30 Minutes",
+              "value": "30"
+            },
+            {
+              "title": "Next Hour",
+              "value": "60"
+            },
+            {
+              "title": "Next 2 Hours",
+              "value": "120"
+            },
+            {
+              "title": "All Day",
+              "value": "0"
+            }
+          ],
+          "defaultValue": "60"
+        }
+      ]
     }
   ],
   "dependencies": {
