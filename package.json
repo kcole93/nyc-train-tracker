@@ -47,6 +47,14 @@
             }
           ],
           "defaultValue": "60"
+        },
+        {
+          "name": "showAccessibilityStatus",
+          "type": "checkbox",
+          "required": false,
+          "label": "Show Station Accessibility Status",
+          "description": "Show accessibility status for each station.",
+          "default": false
         }
       ]
     }

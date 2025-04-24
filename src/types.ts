@@ -1,15 +1,14 @@
-// src/types.ts (Raycast Extension Project)
-
 // --- Types for data received FROM the API Wrapper ---
-
 export interface Station {
   id: string; // Corresponds to stop_id
   name: string;
   latitude?: number; // Optional, as provided by wrapper
   longitude?: number; // Optional, as provided by wrapper
-  system?: string; // Keep if you modify wrapper to return it & want to use it in UI
+  system?: string; // System identifier (e.g., "LIRR", "SUBWAY", "MNR")
   lines?: string[]; // Array of route short names
   borough?: string; // Borough station is located in
+  accessibilityStatus: string; // Accessibility status of the station
+  accessibilityNotes?: string; // Accessibility notes for the station
 }
 
 export type FilterableSystem = "LIRR" | "SUBWAY" | "MNR"; // Systems that can be filtered

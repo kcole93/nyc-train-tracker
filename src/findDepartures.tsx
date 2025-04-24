@@ -6,7 +6,10 @@ import { fetchStations } from "./utils/api";
 import { FilterableSystem, Station, StationListItemProps } from "./types";
 import StationDepartures from "./components/StationDepartures";
 import ViewAlertsCommand from "./viewAlerts";
-import { LocalStorage } from "@raycast/api";
+import { LocalStorage, getPreferenceValues } from "@raycast/api";
+
+const preferences = getPreferenceValues();
+const showAccessibilityStatus = preferences.showAccessibilityStatus;
 
 // Define the possible values for our system filter dropdown
 const systemFilters = ["All", "SUBWAY", "LIRR", "MNR"] as const;
@@ -194,14 +197,11 @@ export default function FindDeparturesCommand() {
       searchBarPlaceholder="Search stations by name..."
       navigationTitle={systemFilterDisplayNames[selectedSystem]}
       searchBarAccessory={
-        // Dropdown now ONLY updates selectedSystem state
         <List.Dropdown
           tooltip="Filter by Transit System"
           storeValue={true}
           onChange={(newValue) => {
-            // Only update the system filter state
             setSelectedSystem(newValue as SystemFilterValue);
-            // DO NOT update searchText here anymore
           }}
           value={selectedSystem}
         >
@@ -341,6 +341,38 @@ function StationListItem({
         color: systemColor,
       },
     });
+    if (showAccessibilityStatus && station.accessibilityStatus) {
+      let icon = Icon.Info;
+      let color = Color.SecondaryText;
+      let tooltip = station.accessibilityStatus;
+
+      switch (station.accessibilityStatus) {
+        case "Fully Accessible":
+          icon = Icon.CheckCircle;
+          color = Color.Green;
+          break;
+        case "Partially Accessible":
+          icon = Icon.Warning;
+          color = Color.Orange;
+          tooltip = station.accessibilityNotes || "Some accessibility limitations";
+          break;
+        case "Not Accessible":
+          icon = Icon.XMarkCircle;
+          color = Color.Red;
+          break;
+        case "Information Unavailable":
+        default:
+          icon = Icon.QuestionMarkCircle;
+          color = Color.SecondaryText;
+          break;
+      }
+
+      accessories.push({
+        icon,
+        tag: { value: station.accessibilityStatus, color },
+        tooltip,
+      });
+    }
   }
 
   return (
@@ -360,6 +392,8 @@ function StationListItem({
                     id: station.id,
                     name: station.name,
                     system: station.system as FilterableSystem,
+                    accessibilityStatus: station.accessibilityStatus,
+                    accessibilityNotes: station.accessibilityNotes,
                   }}
                 />
               }
