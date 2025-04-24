@@ -19,7 +19,6 @@ export function useFavorites() {
         }
       } catch (error) {
         console.error("Failed to load favorites:", error);
-        // Handle error appropriately, maybe show a toast
         if (isMounted) {
           setFavoriteIds(new Set()); // Default to empty set on error
         }

@@ -9,9 +9,7 @@ import {
 } from "../types";
 
 const API_BASE_URL = process.env.API_URL || "http://localhost:3000/api/v1";
-console.log(`[Raycast API Util] Using API Base URL: ${API_BASE_URL}`);
 
-// Define API error class that extends Error
 class APIError extends Error {
   statusCode?: number;
 
@@ -22,7 +20,6 @@ class APIError extends Error {
   }
 }
 
-// Type guard to check if response is an ErrorResponse
 function isErrorResponse(data: unknown): data is ErrorResponse {
   if (typeof data !== "object" || data === null) return false;
 
@@ -90,7 +87,7 @@ async function fetchFromWrapper<T>(endpoint: string, options: RequestInit = {}):
 
 export async function fetchStations(
   query?: string,
-  system?: FilterableSystem, // Accept the optional system filter
+  system?: FilterableSystem,
   forceRefresh: boolean = false,
 ): Promise<Station[]> {
   let endpoint = "/stations";
@@ -118,6 +115,7 @@ export async function fetchStations(
 export async function fetchDepartures(
   stationId: string,
   limitMinutes?: number, // Add optional limit parameter
+  source?: "scheduled" | "realtime",
 ): Promise<ProcessedDeparture[]> {
   // Returns raw Departure[] with string dates
   if (!stationId) return [];
@@ -127,33 +125,39 @@ export async function fetchDepartures(
   if (limitMinutes && limitMinutes > 0) {
     endpoint += `?limitMinutes=${limitMinutes}`;
   }
+  if (source) {
+    endpoint += `&source=${source}`;
+  }
 
   const rawDepartures = await fetchFromWrapper<Departure[]>(endpoint);
 
-  // --- IMPORTANT: Convert date strings to Date objects ---
-  // It's better to do this conversion here in the API utility
-  // so components always receive ProcessedDeparture
   const processedDepartures: ProcessedDeparture[] = rawDepartures.map((dep) => ({
     ...dep,
     departureTime: dep.departureTime ? new Date(dep.departureTime) : null,
+    systemRouteId: dep.routeId ? `${dep.system}-${dep.routeId}` : "",
+    delayMinutes: dep.delayMinutes ? Number(dep.delayMinutes) : null,
   }));
-  // ---
 
   return processedDepartures;
 }
 
 // Wrapper type for alerts
 export async function fetchAlerts(
-  targetLines?: string[], // Array of line identifiers (e.g., route_short_name)
-  activeNow?: boolean, // Boolean flag
+  targetLines?: string[], // Array of line identifiers (e.g., SystemId-RouteId)
+  stationId?: string, // Optional station ID to filter by
 ): Promise<ProcessedServiceAlert[]> {
-  // Return Processed Alerts
+  // Construct endpoint with optional parameters
   const params = new URLSearchParams();
   if (targetLines && targetLines.length > 0) {
     params.append("lines", targetLines.join(","));
   }
-  if (activeNow) {
-    params.append("activeNow", "true");
+  // Always get active alerts only
+  params.append("activeNow", "true");
+  // Always include human-friendly labels
+  params.append("includeLabels", "true");
+
+  if (stationId) {
+    params.append("stationId", stationId);
   }
   const queryString = params.toString();
   const endpoint = `/alerts${queryString ? `?${queryString}` : ""}`;
@@ -164,6 +168,8 @@ export async function fetchAlerts(
   // Convert date strings before returning
   const processedAlerts: ProcessedServiceAlert[] = rawAlerts.map((alert) => ({
     ...alert,
+    affectedLines: alert.affectedLines || [],
+    affectedStations: alert.affectedStations || [],
     startDate: alert.startDate ? new Date(alert.startDate) : undefined,
     endDate: alert.endDate ? new Date(alert.endDate) : undefined,
   }));

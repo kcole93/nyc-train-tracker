@@ -9,10 +9,11 @@ export interface Station {
   longitude?: number; // Optional, as provided by wrapper
   system?: string; // Keep if you modify wrapper to return it & want to use it in UI
   lines?: string[]; // Array of route short names
+  borough?: string; // Borough station is located in
 }
 
 export type FilterableSystem = "LIRR" | "SUBWAY" | "MNR"; // Systems that can be filtered
-export type Direction = "N" | "S" | "E" | "W" | "Unknown";
+export type Direction = string;
 
 export interface Departure {
   tripId?: string;
@@ -36,6 +37,9 @@ export interface ServiceAlert {
   title: string;
   description: string;
   affectedLines: string[]; // Array of route short names
+  affectedStations: string[]; // Array of station names
+  affectedLinesLabels: string[]; // Array of route labels
+  affectedStationsLabels: string[]; // Array of station labels
   // IMPORTANT: These will be received as STRINGS from JSON, need conversion to Date objects after fetch
   startDate?: string | null;
   endDate?: string | null;
@@ -48,11 +52,15 @@ export interface ProcessedDeparture extends Omit<Departure, "departureTime"> {
   departureTime: Date | null; // Now a Date object
   routeColor?: string; // HEX color without preceeding #
   routeTextColor?: string; // HEX color without preceeding #
+  systemRouteId: string; // Combination of system and routeId
+  delayMinutes: number | null;
 }
 
 export interface ProcessedServiceAlert extends Omit<ServiceAlert, "startDate" | "endDate"> {
   startDate?: Date | null; // Now a Date object
   endDate?: Date | null; // Now a Date object
+  affectedLines: string[]; // Array of route short names
+  affectedStations: string[]; // Array of station names
 }
 
 export interface AlertsResponse {

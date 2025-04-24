@@ -6,10 +6,11 @@ export function formatDepartureTime(time: Date | null): string {
   if (!time) return "N/A"; // Handle null time
   const now = new Date();
   const diffMinutes = (time.getTime() - now.getTime()) / 60000;
+  const timeString = format(time, "h:mm a");
 
-  if (diffMinutes < 1) return "Due";
-  if (diffMinutes <= 60) return `in ${formatDistanceToNow(time, { addSuffix: false })}`;
-  return format(time, "h:mm a");
+  if (diffMinutes < 1) return `${timeString} (Due)`;
+  if (diffMinutes <= 60) return `${timeString} (in ${formatDistanceToNow(time, { addSuffix: false })})`;
+  return timeString;
 }
 
 // Helper for Copy Action (uses ProcessedDeparture)
