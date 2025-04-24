@@ -1,4 +1,3 @@
-// src/viewAlerts.tsx
 import { useState, useEffect, useCallback } from "react";
 import { ActionPanel, Action, List, Icon, Color, showToast, Toast, Detail } from "@raycast/api";
 import { formatDistanceToNow, format } from "date-fns";
@@ -39,7 +38,7 @@ export default function ViewAlertsCommand(props: ViewAlertsCommandProps = {}) {
   const [error, setError] = useState<string | null>(null);
 
   // Store current filter state locally within this instance
-  const [filterLines /* , setFilterLines */] = useState<string[] | undefined>(initialFilterLines); // Keep initial line filter
+  const [filterLines] = useState<string[] | undefined>(initialFilterLines); // Keep initial line filter
   const [filterActive] = useState<boolean>(true); // Use initial active filter
 
   // Callback to fetch and update CACHE with RAW data
@@ -72,15 +71,10 @@ export default function ViewAlertsCommand(props: ViewAlertsCommandProps = {}) {
     loadAlerts();
   }, [loadAlerts]);
 
-  // Reload when filterActive state changes
-  useEffect(() => {
-    loadAlerts();
-  }, [filterActive, loadAlerts]); // Add filterActive dependency
-
   return (
     <List
       isLoading={isLoading}
-      navigationTitle="MTA/LIRR Service Alerts"
+      navigationTitle="Service Alerts"
       searchBarPlaceholder="Search alerts..."
       // Global Actions
       actions={
@@ -131,26 +125,22 @@ interface AlertListItemProps {
 
 function AlertListItem({ alert, onRefresh }: AlertListItemProps) {
   const getSeverityColor = (alert: ProcessedServiceAlert): Color => {
-    // Use alert properties (now ProcessedServiceAlert)
     if (alert.title.toLowerCase().includes("suspend")) return Color.Red;
     if (alert.title.toLowerCase().includes("delay")) return Color.Orange;
     return Color.Yellow;
   };
 
-  // Use the helper function for safe date formatting
   const displayDate = alert.startDate || null; // Use start date primarily for display timing
 
   return (
     <List.Item
       icon={{ source: Icon.ExclamationMark, tintColor: getSeverityColor(alert) }}
       title={alert.title}
-      subtitle={alert.affectedLines.join(", ")}
+      subtitle={alert.affectedLinesLabels.join(", ")}
       accessories={[
         {
-          // Use safe formatting helper for distance
           text: displayDate ? formatAlertDistance(displayDate.toISOString()) : "Ongoing",
           icon: Icon.Calendar,
-          // Use safe formatting helper for tooltip
           tooltip: displayDate ? `Started: ${formatAlertDate(displayDate.toISOString(), "PPpp")}` : undefined,
         },
       ]}
@@ -228,20 +218,23 @@ ${alert.url ? `\n[View on Website](${alert.url})` : ""}
       }
       metadata={
         <Detail.Metadata>
-          {/* Use safe formatting helper */}
-          <Detail.Metadata.Label title="Started" text={startDateFormatted} />
-          {alert.endDate && <Detail.Metadata.Label title="Ends" text={endDateFormatted} />}
-
-          <Detail.Metadata.TagList title="Affected Lines">
-            {alert.affectedLinesLabels.map((line) => (
-              <Detail.Metadata.TagList.Item key={line} text={line} color={Color.Red} />
-            ))}
-          </Detail.Metadata.TagList>
-          <Detail.Metadata.TagList title="Affected Stations">
-            {alert.affectedStationsLabels.map((station) => (
-              <Detail.Metadata.TagList.Item key={station} text={station} color={Color.Red} />
-            ))}
-          </Detail.Metadata.TagList>
+          <Detail.Metadata.Label title="Started" text={startDateFormatted} icon={Icon.Calendar} />
+          {alert.endDate && <Detail.Metadata.Label title="Ends" text={endDateFormatted} icon={Icon.Calendar} />}
+          <Detail.Metadata.Separator />
+          {alert.affectedLinesLabels.length > 0 && (
+            <Detail.Metadata.TagList title="Affected Lines">
+              {alert.affectedLinesLabels.map((line) => (
+                <Detail.Metadata.TagList.Item key={line} text={line} color={Color.Red} />
+              ))}
+            </Detail.Metadata.TagList>
+          )}
+          {alert.affectedStationsLabels.length > 0 && (
+            <Detail.Metadata.TagList title="Affected Stations">
+              {alert.affectedStationsLabels.map((station) => (
+                <Detail.Metadata.TagList.Item key={station} text={station} color={Color.Red} />
+              ))}
+            </Detail.Metadata.TagList>
+          )}
           {alert.url && <Detail.Metadata.Link title="Official Link" target={alert.url} text="Website" />}
           <Detail.Metadata.Separator />
         </Detail.Metadata>

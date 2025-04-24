@@ -41,7 +41,7 @@ function getStatusAccessory(status: string): List.Item.Accessory {
 export default function StationDepartures({ station }: StationDeparturesProps) {
   // --- Read Preference ---
   const preferences = getPreferenceValues<DeparturePreferences>();
-  const defaultWindow = preferences.defaultDepartureWindow || "60"; // Fallback if not set
+  const defaultWindow = preferences.defaultDepartureWindow || "30"; // Fallback if not set
 
   // --- State ---
   const [departures, setDepartures] = useState<ProcessedDeparture[]>([]);
@@ -54,7 +54,6 @@ export default function StationDepartures({ station }: StationDeparturesProps) {
     async (windowMinutes: number) => {
       setIsLoading(true);
       try {
-        // Pass station.id and windowMinutes to your API function
         const fetchedDepartures = await fetchDepartures(station.id, windowMinutes);
         setDepartures(fetchedDepartures);
       } catch (error) {
@@ -142,7 +141,7 @@ export default function StationDepartures({ station }: StationDeparturesProps) {
             return a.localeCompare(b);
           })
           .map(([borough, boroughDepartures]) => (
-            <List.Section key={borough} title={borough === "Arrivals" ? "Arrivals" : `${borough} Departures`}>
+            <List.Section key={borough} title={borough === "Arrivals" ? "Arrivals" : `${borough}`}>
               {boroughDepartures
                 .slice()
                 .sort((a, b) => {
@@ -211,13 +210,11 @@ export default function StationDepartures({ station }: StationDeparturesProps) {
                             onAction={() => handleRefresh()}
                             shortcut={{ modifiers: ["cmd"], key: "r" }}
                           />
-                          {dep.routeShortName && dep.routeShortName !== "" && (
-                            <Action.Push
-                              title={`View Active Alerts for Line ${dep.routeShortName}`}
-                              icon={Icon.Bell}
-                              target={<ViewAlertsCommand initialFilterLines={[dep.routeShortName]} />}
-                            />
-                          )}
+                          <Action.Push
+                            title={`View Active Alerts for ${dep.routeShortName !== "" ? dep.routeShortName : dep.routeLongName}`}
+                            icon={Icon.Bell}
+                            target={<ViewAlertsCommand initialFilterLines={[`${dep.system}-${dep.routeId}`]} />}
+                          />
                           <Action.Push
                             title="Show Departure Details"
                             icon={Icon.Info}
@@ -261,7 +258,7 @@ export default function StationDepartures({ station }: StationDeparturesProps) {
             return a.localeCompare(b);
           })
           .map(([borough, boroughDepartures]) => (
-            <List.Section key={borough} title={`${borough} Departures`}>
+            <List.Section key={borough} title={borough}>
               {boroughDepartures
                 .slice()
                 .sort((a, b) => {
@@ -330,13 +327,11 @@ export default function StationDepartures({ station }: StationDeparturesProps) {
                             onAction={() => handleRefresh()}
                             shortcut={{ modifiers: ["cmd"], key: "r" }}
                           />
-                          {dep.routeShortName && dep.routeShortName !== "" && (
-                            <Action.Push
-                              title={`View Active Alerts for Line ${dep.routeShortName}`}
-                              icon={Icon.Bell}
-                              target={<ViewAlertsCommand initialFilterLines={[dep.routeShortName]} />}
-                            />
-                          )}
+                          <Action.Push
+                            title={`View Active Alerts for ${dep.routeShortName !== "" ? dep.routeShortName : dep.routeLongName}`}
+                            icon={Icon.Bell}
+                            target={<ViewAlertsCommand initialFilterLines={[`${dep.system}-${dep.routeId}`]} />}
+                          />
                           <Action.Push
                             title="Show Departure Details"
                             icon={Icon.Info}
