@@ -1,27 +1,36 @@
 import { useState, useEffect, useCallback } from "react";
-import { ActionPanel, Action, List, Icon, Color, showToast, Toast, Detail } from "@raycast/api";
+import { ActionPanel, Action, List, Icon, Color, showToast, Toast, Detail, environment } from "@raycast/api";
 import { formatDistanceToNow, format } from "date-fns";
 import { fetchAlerts } from "./utils/api";
 import { ProcessedServiceAlert } from "./types";
 
 // --- Helper Function for Safe Date Formatting ---
-function formatAlertDate(dateString: string | null | undefined, formatString: string): string {
-  if (!dateString) return "N/A";
+function formatAlertDate(date: Date | null | undefined, formatString: string): string {
+  // Check if date is null/undefined OR an invalid Date object
+  if (!date || isNaN(date.getTime())) {
+    return "N/A";
+  }
   try {
-    return format(new Date(dateString), formatString);
+    // Pass the Date object directly to format
+    return format(date, formatString);
   } catch (e) {
-    console.warn("Failed to format alert date string:", dateString, e);
-    return "Invalid Date";
+    console.warn("Failed to format valid date object:", date, e);
+    return "Formatting Error"; // Should not happen with valid Date object
   }
 }
 
-function formatAlertDistance(dateString: string | null | undefined): string {
-  if (!dateString) return "N/A";
+// Corrected type hint to accept Date objects or null/undefined directly
+function formatAlertDistance(date: Date | null | undefined): string {
+  // Check if date is null/undefined OR an invalid Date object
+  if (!date || isNaN(date.getTime())) {
+    return "N/A";
+  }
   try {
-    return formatDistanceToNow(new Date(dateString), { addSuffix: true });
+    // Pass the Date object directly to formatDistanceToNow
+    return formatDistanceToNow(date, { addSuffix: true });
   } catch (e) {
-    console.warn("Failed to format alert distance for date string:", dateString, e);
-    return "Invalid Date";
+    console.warn("Failed to format distance for valid date object:", date, e);
+    return "Formatting Error"; // Should not happen with valid Date object
   }
 }
 
@@ -51,7 +60,6 @@ export default function ViewAlertsCommand(props: ViewAlertsCommandProps = {}) {
       }
       try {
         // Fetch raw ServiceAlert[] with string dates
-        console.log(`[Alerts View] Fetching with Lines: ${filterLines?.join(",")}, Active: ${filterActive}`);
         const alertsWithDates = await fetchAlerts(filterLines, initialFilterStationId);
         setProcessedAlerts(alertsWithDates);
       } catch (err: unknown) {
@@ -108,6 +116,7 @@ export default function ViewAlertsCommand(props: ViewAlertsCommandProps = {}) {
           <List.Section title="Current Alerts">
             {/* Map over PROCESSED alerts */}
             {processedAlerts.map((alert) => (
+              // Pass the ProcessedServiceAlert object directly
               <AlertListItem key={alert.id} alert={alert} onRefresh={() => loadAlerts(true)} />
             ))}
           </List.Section>
@@ -127,10 +136,14 @@ function AlertListItem({ alert, onRefresh }: AlertListItemProps) {
   const getSeverityColor = (alert: ProcessedServiceAlert): Color => {
     if (alert.title.toLowerCase().includes("suspend")) return Color.Red;
     if (alert.title.toLowerCase().includes("delay")) return Color.Orange;
-    return Color.Yellow;
+    return Color.Orange; // Corrected: Defaulting to Orange for general alerts not suspend/delay
   };
 
   const displayDate = alert.startDate || null; // Use start date primarily for display timing
+
+  // Use the safe formatters directly with the Date object
+  const accessoryText = formatAlertDistance(displayDate); // Will be "N/A" if invalid/old
+  const tooltipText = displayDate ? `Started: ${formatAlertDate(displayDate, "PPpp")}` : undefined; // Will show N/A in tooltip
 
   return (
     <List.Item
@@ -139,14 +152,15 @@ function AlertListItem({ alert, onRefresh }: AlertListItemProps) {
       subtitle={alert.affectedLinesLabels.join(", ")}
       accessories={[
         {
-          text: displayDate ? formatAlertDistance(displayDate.toISOString()) : "Ongoing",
+          text: accessoryText,
           icon: Icon.Calendar,
-          tooltip: displayDate ? `Started: ${formatAlertDate(displayDate.toISOString(), "PPpp")}` : undefined,
+          tooltip: tooltipText,
         },
       ]}
       actions={
         <ActionPanel>
           <ActionPanel.Section>
+            {/* Pass the ProcessedServiceAlert object to the Detail view */}
             <Action.Push title="View Alert Details" icon={Icon.Sidebar} target={<AlertDetailView alert={alert} />} />
             {alert.url && (
               <Action.OpenInBrowser
@@ -170,7 +184,7 @@ function AlertListItem({ alert, onRefresh }: AlertListItemProps) {
             />
             <Action.CopyToClipboard
               title="Copy Alert Details"
-              content={alert.description}
+              content={alert.description} // Copies the original description text
               shortcut={{ modifiers: ["cmd", "shift"], key: "." }}
             />
           </ActionPanel.Section>
@@ -187,20 +201,35 @@ interface AlertDetailViewProps {
 }
 
 function AlertDetailView({ alert }: AlertDetailViewProps) {
-  // Use safe date formatting helpers here too
-  const startDateFormatted = alert.startDate ? formatAlertDate(alert.startDate.toISOString(), "PPpp") : "N/A";
-  const startDateDistance = alert.startDate ? formatAlertDistance(alert.startDate.toISOString()) : "Ongoing";
-  const endDateFormatted = alert.endDate ? formatAlertDate(alert.endDate.toISOString(), "PPpp") : "Ongoing";
+  // Use safe date formatting helpers here too, passing Date objects
+  const startDateFormatted = formatAlertDate(alert.startDate, "PPpp");
+  const startDateDistance = formatAlertDistance(alert.startDate);
+  const endDateFormatted = formatAlertDate(alert.endDate, "PPpp");
+
+  // --- Process the description to replace text with asset images ---
+  let processedDescription = alert.description;
+
+  // Replace [shuttle bus icon] with the SVG asset
+  processedDescription = processedDescription.replace(
+    /\[shuttle bus icon\]/g,
+    `![Shuttle Bus Icon](${environment.assetsPath}/mta-shuttle.svg) `,
+  );
+
+  // Replace [accessibility icon] with the SVG asset
+  processedDescription = processedDescription.replace(
+    /\[accessibility icon\]/g,
+    `![Accessibility Icon](${environment.assetsPath}/mta-accessibility.svg) `,
+  );
 
   const markdown = `
 # ${alert.title}
 
-**Started:** ${startDateDistance} (${startDateFormatted})  
-${alert.endDate ? `**Ends:** ${endDateFormatted}` : ""}
+**Started:** ${startDateFormatted === "N/A" ? "N/A" : `${startDateDistance} (${startDateFormatted})`}
+${alert.endDate && endDateFormatted !== "N/A" ? `\n**Ends:** ${endDateFormatted}` : ""}
 
 ---
 
-${alert.description}
+${processedDescription}
 
 ${alert.url ? `\n[View on Website](${alert.url})` : ""}
   `;

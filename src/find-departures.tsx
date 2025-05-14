@@ -1,11 +1,11 @@
-// src/findDepartures.tsx
+// src/find-departures.tsx
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { ActionPanel, Action, List, Icon, showToast, Toast, Color } from "@raycast/api";
 import { useFavorites } from "./hooks/useFavorites";
 import { fetchStations } from "./utils/api";
 import { FilterableSystem, Station, StationListItemProps } from "./types";
 import StationDepartures from "./components/StationDepartures";
-import ViewAlertsCommand from "./viewAlerts";
+import ViewAlertsCommand from "./view-alerts";
 import { LocalStorage, getPreferenceValues } from "@raycast/api";
 
 const preferences = getPreferenceValues();
@@ -36,18 +36,17 @@ async function getCachedAllStations(): Promise<Station[]> {
     const now = Date.now();
 
     if (cached && cachedTimestamp && now - parseInt(String(cachedTimestamp), 10) < CACHE_DURATION_MS) {
-      console.log("[Cache] HIT for all stations list.");
+      // Using cached station list
       return JSON.parse(String(cached)) as Station[];
     }
 
-    console.log("[Cache] MISS/EXPIRED for all stations list. Fetching...");
+    // Cache miss or expired, fetching new data
     // *** Fetch ALL stations - no system filter ***
     const stations = await fetchStations(); // Pass no arguments for system filter
 
     // Cache the full list
     await LocalStorage.setItem(ALL_STATIONS_CACHE_KEY, JSON.stringify(stations));
     await LocalStorage.setItem(ALL_STATIONS_TIMESTAMP_KEY, now.toString());
-    console.log(`[Cache] Stored ${stations.length} stations.`);
     return stations;
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -56,7 +55,7 @@ async function getCachedAllStations(): Promise<Station[]> {
       title: "Error Loading Stations",
       message: `Cache interaction failed. Fetching from API. Error: ${errorMessage}`,
     });
-    console.error("[Cache] Error interacting with LocalStorage, fetching directly:", error);
+    console.error("Error accessing cached stations, fetching directly from API:", error);
     // Fallback fetch
     return fetchStations();
   }
@@ -76,7 +75,6 @@ export default function FindDeparturesCommand() {
       if (!toastInstance) {
         setIsLoading(true);
       }
-      console.log("Loading/Refreshing all stations...");
       let success = false;
       try {
         const stations = await getCachedAllStations(); // Fetches/caches the full list
@@ -85,7 +83,7 @@ export default function FindDeparturesCommand() {
         setAllStations(stations); // Update with new/cached data
         success = true; // Mark as successful
       } catch (err: unknown) {
-        console.error("Failed to fetch stations:", err);
+        console.error("Failed to fetch stations data:", err);
         const message = err instanceof Error ? err.message : "Could not load station data.";
         // Update toast ONLY if it was passed (meaning it was a manual refresh)
         if (toastInstance) {
@@ -174,7 +172,6 @@ export default function FindDeparturesCommand() {
         toast.title = "Refresh Error";
         toast.message = error instanceof Error ? error.message : "Unknown refresh error";
       }
-      console.error("Error during refresh process:", error);
     }
   }, [loadStations]); // Depends only on the stable loadStations function
 

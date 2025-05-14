@@ -8,7 +8,7 @@ import {
   ErrorResponse,
 } from "../types";
 
-const API_BASE_URL = "http://localhost:3000/api/v1";
+const API_BASE_URL = "https://metroflow.ainslie.digital/api/v1";
 
 class APIError extends Error {
   statusCode?: number;
@@ -37,7 +37,7 @@ function isErrorResponse(data: unknown): data is ErrorResponse {
 
 async function fetchFromWrapper<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
-  console.log(`[Raycast API Util] Fetching from: ${url}`);
+  console.log(`[Raycast API Util] Fetching from: ${url} (API Base: ${API_BASE_URL})`);
 
   try {
     const response = await fetch(url, {
@@ -51,7 +51,7 @@ async function fetchFromWrapper<T>(endpoint: string, options: RequestInit = {}):
     // Check content type before parsing JSON
     const contentType = response.headers.get("content-type");
     if (!contentType || !contentType.includes("application/json")) {
-      console.error(`[Raycast API Util] Expected JSON response but got ${contentType} from ${url}`);
+      console.error(`[API] Expected JSON response but got ${contentType} from ${url}`);
       throw new APIError(`Invalid response format received from server.`, response.status);
     }
 
@@ -72,7 +72,7 @@ async function fetchFromWrapper<T>(endpoint: string, options: RequestInit = {}):
 
     return data as T;
   } catch (error) {
-    console.error(`[Raycast API Util] Network or parsing error fetching ${url}:`, error);
+    console.error(`[API] Network or parsing error fetching ${url}:`, error);
     if (error instanceof APIError) {
       throw error;
     } else if (error instanceof Error) {
@@ -166,13 +166,41 @@ export async function fetchAlerts(
   const rawAlerts = await fetchFromWrapper<ServiceAlert[]>(endpoint);
 
   // Convert date strings before returning
-  const processedAlerts: ProcessedServiceAlert[] = rawAlerts.map((alert) => ({
-    ...alert,
-    affectedLines: alert.affectedLines || [],
-    affectedStations: alert.affectedStations || [],
-    startDate: alert.startDate ? new Date(alert.startDate) : undefined,
-    endDate: alert.endDate ? new Date(alert.endDate) : undefined,
-  }));
+  const processedAlerts: ProcessedServiceAlert[] = rawAlerts.map((alert) => {
+    let startDate: Date | undefined;
+    let endDate: Date | undefined;
+
+    if (alert.startDate) {
+      const potentialStartDate = new Date(alert.startDate);
+      if (!isNaN(potentialStartDate.getTime())) {
+        startDate = potentialStartDate;
+      }
+    }
+
+    if (alert.endDate) {
+      if (
+        typeof alert.endDate === "string" &&
+        (alert.endDate === "0" || alert.endDate === "-1" || alert.endDate.trim() === "")
+      ) {
+        endDate = undefined;
+      } else {
+        const potentialEndDate = new Date(alert.endDate);
+
+        // If the date is epoch (1970-01-01), treat as no end date
+        if (!isNaN(potentialEndDate.getTime()) && potentialEndDate.toISOString() !== "1970-01-01T00:00:00.000Z") {
+          endDate = potentialEndDate;
+        }
+      }
+    }
+
+    return {
+      ...alert,
+      affectedLines: alert.affectedLines || [],
+      affectedStations: alert.affectedStations || [],
+      startDate: startDate,
+      endDate: endDate,
+    };
+  });
 
   return processedAlerts;
 }

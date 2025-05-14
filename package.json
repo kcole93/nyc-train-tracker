@@ -1,22 +1,33 @@
 {
   "$schema": "https://www.raycast.com/schemas/extension.json",
-  "name": "mta-lirr-tracker",
-  "title": "NYC Train Tracker",
+  "name": "nyc-train-tracker",
+  "title": "NYC Train Tracker - Realtime Train Departures",
   "description": "Look up train departures and service alerts for MTA, LIRR and MNR.",
-  "icon": "extension-icon.png",
+  "icon": "icon.png",
+  "keywords": [
+    "subway",
+    "train",
+    "mta",
+    "lirr",
+    "metro north",
+    "nyc",
+    "new york",
+    "transit"
+  ],
   "author": "kcole93",
-  "owner": "ainslie-digital",
+  "type": "module",
   "categories": [
     "Other"
   ],
   "license": "MIT",
   "commands": [
     {
-      "name": "finddepartures",
-      "title": "findDepartures",
-      "subtitle": "Find Train Departures",
-      "description": "Search for MTA/LIRR station departures and view favorites.",
+      "name": "find-departures",
+      "title": "Find Train Departures",
+      "subtitle": "MTA, LIRR, and Metro-North",
+      "description": "Search for NYC train departures from MTA, LIRR, and Metro-North stations.",
       "mode": "view",
+      "main": "src/find-departures.tsx",
       "preferences": [
         {
           "name": "defaultDepartureWindow",
@@ -62,7 +73,8 @@
   "dependencies": {
     "@raycast/api": "^1.94.4",
     "@raycast/utils": "^1.17.0",
-    "date-fns": "^4.1.0"
+    "date-fns": "^4.1.0",
+    "dotenv": "^16.5.0"
   },
   "devDependencies": {
     "@raycast/eslint-config": "^2.0.4",

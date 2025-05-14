@@ -5,7 +5,7 @@ import { fetchDepartures } from "../utils/api";
 import { ProcessedDeparture, Station } from "../types";
 import { formatDepartureTime, getCopyContent } from "../utils/dateUtils";
 import { DepartureDetails } from "./DepartureDetails";
-import ViewAlertsCommand from "../viewAlerts";
+import ViewAlertsCommand from "../view-alerts";
 
 // Define interface for preferences
 interface DeparturePreferences {
@@ -160,7 +160,10 @@ export default function StationDepartures({ station }: StationDeparturesProps) {
                         ? [
                             {
                               tag: {
-                                value: `${dep.routeShortName}: ${dep.routeLongName}`,
+                                value:
+                                  dep.system === "SUBWAY"
+                                    ? `${dep.routeShortName}: ${dep.routeLongName}`
+                                    : dep.routeLongName,
                                 color: {
                                   light: dep.routeColor ? `#${dep.routeColor}` : Color.SecondaryText,
                                   dark: dep.routeColor ? `#${dep.routeColor}` : Color.SecondaryText,
@@ -173,7 +176,7 @@ export default function StationDepartures({ station }: StationDeparturesProps) {
                           ? [
                               {
                                 tag: {
-                                  value: dep.routeLongName,
+                                  value: dep.system === "SUBWAY" ? dep.routeLongName : dep.routeLongName,
                                   color: {
                                     light: dep.routeColor ? `#${dep.routeColor}` : Color.SecondaryText,
                                     dark: dep.routeColor ? `#${dep.routeColor}` : Color.SecondaryText,
@@ -204,6 +207,11 @@ export default function StationDepartures({ station }: StationDeparturesProps) {
                     actions={
                       <ActionPanel>
                         <ActionPanel.Section>
+                          <Action.Push
+                            title="Show Departure Details"
+                            icon={Icon.Info}
+                            target={<DepartureDetails departure={dep} />}
+                          />
                           <Action
                             title="Refresh Departures"
                             icon={Icon.ArrowClockwise}
@@ -211,14 +219,9 @@ export default function StationDepartures({ station }: StationDeparturesProps) {
                             shortcut={{ modifiers: ["cmd"], key: "r" }}
                           />
                           <Action.Push
-                            title={`View Active Alerts for ${dep.routeShortName !== "" ? dep.routeShortName : dep.routeLongName}`}
+                            title={`View Active Alerts for ${dep.system === "SUBWAY" ? dep.routeShortName || dep.routeLongName : "This Route"}`}
                             icon={Icon.Bell}
                             target={<ViewAlertsCommand initialFilterLines={[`${dep.system}-${dep.routeId}`]} />}
-                          />
-                          <Action.Push
-                            title="Show Departure Details"
-                            icon={Icon.Info}
-                            target={<DepartureDetails departure={dep} />}
                           />
                         </ActionPanel.Section>
                         <ActionPanel.Section>
@@ -277,7 +280,10 @@ export default function StationDepartures({ station }: StationDeparturesProps) {
                         ? [
                             {
                               tag: {
-                                value: `${dep.routeShortName}: ${dep.routeLongName}`,
+                                value:
+                                  dep.system === "SUBWAY"
+                                    ? `${dep.routeShortName}: ${dep.routeLongName}`
+                                    : dep.routeLongName,
                                 color: {
                                   light: dep.routeColor ? `#${dep.routeColor}` : Color.SecondaryText,
                                   dark: dep.routeColor ? `#${dep.routeColor}` : Color.SecondaryText,
@@ -290,7 +296,7 @@ export default function StationDepartures({ station }: StationDeparturesProps) {
                           ? [
                               {
                                 tag: {
-                                  value: dep.routeLongName,
+                                  value: dep.system === "SUBWAY" ? dep.routeLongName : dep.routeLongName,
                                   color: {
                                     light: dep.routeColor ? `#${dep.routeColor}` : Color.SecondaryText,
                                     dark: dep.routeColor ? `#${dep.routeColor}` : Color.SecondaryText,
@@ -321,6 +327,11 @@ export default function StationDepartures({ station }: StationDeparturesProps) {
                     actions={
                       <ActionPanel>
                         <ActionPanel.Section>
+                          <Action.Push
+                            title="Show Departure Details"
+                            icon={Icon.Info}
+                            target={<DepartureDetails departure={dep} />}
+                          />
                           <Action
                             title="Refresh Departures"
                             icon={Icon.ArrowClockwise}
@@ -328,14 +339,9 @@ export default function StationDepartures({ station }: StationDeparturesProps) {
                             shortcut={{ modifiers: ["cmd"], key: "r" }}
                           />
                           <Action.Push
-                            title={`View Active Alerts for ${dep.routeShortName !== "" ? dep.routeShortName : dep.routeLongName}`}
+                            title={`View Active Alerts for ${dep.system === "SUBWAY" ? dep.routeShortName || dep.routeLongName : "This Route"}`}
                             icon={Icon.Bell}
                             target={<ViewAlertsCommand initialFilterLines={[`${dep.system}-${dep.routeId}`]} />}
-                          />
-                          <Action.Push
-                            title="Show Departure Details"
-                            icon={Icon.Info}
-                            target={<DepartureDetails departure={dep} />}
                           />
                         </ActionPanel.Section>
                         <ActionPanel.Section>

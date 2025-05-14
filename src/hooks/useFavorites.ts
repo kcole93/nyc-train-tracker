@@ -18,8 +18,8 @@ export function useFavorites() {
           setFavoriteIds(storedFavorites ? new Set(JSON.parse(storedFavorites)) : new Set());
         }
       } catch (error) {
-        console.error("Failed to load favorites:", error);
         if (isMounted) {
+          console.error("Failed to load favorites:", error);
           setFavoriteIds(new Set()); // Default to empty set on error
         }
       } finally {
@@ -41,7 +41,6 @@ export function useFavorites() {
       await LocalStorage.setItem(FAVORITES_KEY, JSON.stringify(Array.from(ids)));
     } catch (error) {
       console.error("Failed to save favorites:", error);
-      // Handle error (e.g., show toast)
     }
   }, []);
 
