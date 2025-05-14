@@ -1,8 +1,19 @@
 # NYC Train Tracker
 
-![NYC Train Tracker](metadata/nyc-train-tracker-hero.png)
+The NYC Train Tracker extension allows you to look up train departures and service alerts for MTA Subway, Long Island Rail Road (LIRR), and Metro-North Railroad (MNR).
 
-NYC Train Tracker is a Raycast extension that allows you to look up train departures and service alerts for MTA Subway, Long Island Rail Road (LIRR), and Metro-North Railroad (MNR).
+| Description                                                   | Preview                                                                            |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Searching for stations                                        | ![screenshot: searching stations](./metadata/nyc-train-tracker-1.png)              |
+| Filtering by transit system                                   | ![screenshot: filtering by transit system](./metadata/nyc-train-tracker-2.png)     |
+| Viewing upcoming departures                                   | ![screenshot: viewing upcoming departures](./metadata/nyc-train-tracker-3.png)     |
+| Viewing service alerts                                        | ![screenshot: viewing service alerts](./metadata/nyc-train-tracker-4.png)          |
+| Support for Long Island Railroad and Manhattan North Railroad | ![screenshot: viewing LIRR and MNR departures](./metadata/nyc-train-tracker-5.png) |
+
+---
+
+**Disclaimer**
+This extension is not affiliated with, licensed nor endorsed by the Metropolitan Transportation Authority (MTA). The data utilized within this app is provided by a third-party MTA wrapper API which stores and sends data on its own servers.
 
 ## Features
 
@@ -37,16 +48,6 @@ NYC Train Tracker is a Raycast extension that allows you to look up train depart
 - **⌘ + R**: Refresh data
 - **⌘ + .**: Copy departure information to clipboard
 
-## Screenshots
-
-![Station List](metadata/screenshot-stations.png)
-![Departures View](metadata/screenshot-departures.png)
-![Service Alerts](metadata/screenshot-alerts.png)
-
 ## Data Sources
 
-This extension fetches real-time and scheduled data from official MTA, LIRR, and Metro-North data feeds.
-
-## Feedback & Support
-
-If you encounter any issues or have suggestions for improvements, please [open an issue](https://github.com/kcole93/nyc-train-tracker-raycast/issues) on GitHub.
+This extension fetches real-time and scheduled data using an open-source MTA wrapper API hosted by [Ainslie Digital](https://ainslie.digital).

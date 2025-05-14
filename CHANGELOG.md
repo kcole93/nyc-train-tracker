@@ -1,15 +1,16 @@
 # NYC Train Tracker Changelog
 
-## [Initial Version] - 2023-12-08
+## [Initial Release] - {PR_MERGE_DATE}
 
 ### Added
+
 - Search functionality for train stations across MTA, LIRR, and Metro-North
 - Real-time and scheduled departure information
-- Service alert information for all NYC transit systems
+- Service alert information for supported transit systems
 - Station favoriting functionality for quick access to frequent stations
 - Filtering by transit system (Subway, LIRR, Metro-North)
 - Accessibility status indicators for stations
-- Customizable departure time windows
+- Customizable default departure time windows
 - Detailed view for individual departures
 - Track information display for LIRR and Metro-North departures
-- Peak/Off-Peak status for relevant train lines
+- Peak/Off-Peak status for LIRR and Metro-North departures
